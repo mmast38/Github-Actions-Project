@@ -19,7 +19,7 @@ jobs:
           cache: maven
 
       - name: Build with Maven
-        run: mvn compile
+        run: mvn clean compile
 
   security-check:
     runs-on: self-hosted
@@ -30,9 +30,9 @@ jobs:
       - name: Install Trivy
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          sudo apt-get install -y wget gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
           sudo apt-get update -y
           sudo apt-get install -y trivy
 
@@ -40,7 +40,10 @@ jobs:
         run: trivy fs --format json -o fs-report.json .
 
       - name: Install Gitleaks
-        run: sudo apt-get install -y gitleaks
+        run: |
+          wget https://github.com/gitleaks/gitleaks/releases/latest/download/gitleaks-linux-amd64.tar.gz
+          tar -xzf gitleaks-linux-amd64.tar.gz
+          sudo mv gitleaks /usr/local/bin/
 
       - name: Gitleaks Code Scan
         run: gitleaks detect --source . --report-path gitleaks-report.json --report-format json
@@ -61,7 +64,7 @@ jobs:
       - name: Unit Test Cases
         run: mvn test
 
-       build_project_and_sonar_scan:
+  build_project_and_sonar_scan:
     runs-on: self-hosted
     needs: test
     steps:
@@ -76,7 +79,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build SProject
+      - name: Build Project
         run: mvn package
 
       - name: SonarQube Scan
@@ -86,13 +89,9 @@ jobs:
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
       - name: SonarQube Quality Gate Check
-        id: sonarqube-quality-gate-check
-        uses: sonarsource/sonarqube-quality-gate-action@master
+        uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
         with:
           pollingTimeoutSec: 600
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-
-
- 
