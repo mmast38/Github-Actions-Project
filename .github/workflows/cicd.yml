@@ -76,7 +76,7 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build Project
+      - name: Build SProject
         run: mvn package
 
       - name: SonarQube Scan
