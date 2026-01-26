@@ -140,36 +140,33 @@ jobs:
           push: true
           tags: mast2024/bankapp2:latest
 
-  deploy_to_eks:
+  deploy_to_kubernetes:
     runs-on: self-hosted
-    needs: build_docker_image_and_push
-    container:
-      image: amazonlinux:2
-      options: --user root
+    needs: buils_docker_image_and_push
     steps:
-      - name: Install prerequisites
-        run: |
-          yum install -y unzip curl tar gzip which
-          # Install AWS CLI
-          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-          unzip awscliv2.zip
-          ./aws/install
-          aws --version
-          # Install kubectl
-          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-          chmod +x kubectl
-          mv kubectl /usr/local/bin/
-          kubectl version --client
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-      - name: Update kubeconfig
-        run: aws eks update-kubeconfig --region us-east-1 --name my-eks-cluster
-      - name: Deploy to EKS
-        run: |
-          kubectl apply -f bankapp-deployment.yaml
-          kubectl apply -f bankapp-service.yaml
+    - name: Checkout Code
+      uses: actions/checkout@v4
+    - name: Install AWS CLI
+      run: |
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+        unzip awscliv2.zip
+        sudo ./aws/install
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: us-east-1
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: latest
+    - name: Configure kubeconfig
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.EKS_KUBECONFIG }}" > $HOME/.kube/config
+    - name: Deploy to EKS
+      run: |
+        kubectl apply -f ds.yml
+
 
