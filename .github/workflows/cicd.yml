@@ -23,7 +23,49 @@ jobs:
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
-      # ... [security-check steps here, unchanged] ...
+
+      - name: Runner Diagnostics
+        run: |
+          echo "User: $(whoami)"
+          echo "OS Info:" 
+          uname -a
+
+      - name: Install Trivy (Best Effort)
+        run: |
+          if command -v trivy >/dev/null 2>&1; then exit 0; fi
+          if command -v sudo >/dev/null 2>&1; then
+            sudo apt-get update -y || true
+            sudo apt-get install -y wget gnupg || true
+            wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg >/dev/null
+            echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb stable main" | sudo tee /etc/apt/sources.list.d/trivy.list
+            sudo apt-get update -y || true
+            sudo apt-get install -y trivy || true
+          fi
+        continue-on-error: true
+
+      - name: Trivy Scan (Non-blocking)
+        run: |
+          if command -v trivy >/dev/null 2>&1; then
+            trivy fs --exit-code 0 --format json -o trivy-report.json .
+          fi
+        continue-on-error: true
+
+      - name: Install Gitleaks (Best Effort)
+        run: |
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then BIN="gitleaks-linux-amd64"; elif [ "$ARCH" = "aarch64" ]; then BIN="gitleaks-linux-arm64"; fi
+          wget https://github.com/gitleaks/gitleaks/releases/latest/download/$BIN.tar.gz
+          tar -xzf $BIN.tar.gz
+          chmod +x gitleaks
+          sudo mv gitleaks /usr/local/bin/ || true
+        continue-on-error: true
+
+      - name: Gitleaks Scan (Non-blocking)
+        run: |
+          if command -v gitleaks >/dev/null 2>&1; then
+            gitleaks detect --exit-code 0 --source . --report-path gitleaks-report.json --report-format json
+          fi
+        continue-on-error: true
 
   test:
     runs-on: self-hosted
@@ -101,23 +143,33 @@ jobs:
   deploy_to_eks:
     runs-on: self-hosted
     needs: build_docker_image_and_push
+    container:
+      image: amazonlinux:2
+      options: --user root
     steps:
+      - name: Install prerequisites
+        run: |
+          yum install -y unzip curl tar gzip which
+          # Install AWS CLI
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip awscliv2.zip
+          ./aws/install
+          aws --version
+          # Install kubectl
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          mv kubectl /usr/local/bin/
+          kubectl version --client
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
-
       - name: Update kubeconfig
         run: aws eks update-kubeconfig --region us-east-1 --name my-eks-cluster
-
       - name: Deploy to EKS
         run: |
           kubectl apply -f bankapp-deployment.yaml
           kubectl apply -f bankapp-service.yaml
 
-      - name: Verify deployment
-        run: |
-          kubectl get pods
-          kubectl get svc
