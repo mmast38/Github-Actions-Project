@@ -5,6 +5,10 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+env:
+  SONAR_PROJECT_KEY: bankapp
+  SONAR_PROJECT_NAME: bankapp
+
 jobs:
   compile:
     runs-on: self-hosted
@@ -53,20 +57,23 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-      - name: Build JAR
-        run: mvn clean package
-
+      
+      - name: Run tests with coverage
+        run: mvn clean verify
+      
       - name: Upload JAR Artifact
         uses: actions/upload-artifact@v4
         with:
           name: java-jar-artifact
           path: target/*.jar
 
-      - name: SonarQube Maven Analysis
-        run: mvn sonar:sonar \
-              -Dsonar.projectKey=bankapp \
-              -Dsonar.host.url=${{ vars.SONAR_HOST_URL }} \
-              -Dsonar.login=${{ secrets.SONAR_TOKEN }}
+      - name: SonarQube Scan
+        run: |
+          mvn clean verify sonar:sonar \
+            -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY }} \
+            -Dsonar.projectName=${{ vars.SONAR_PROJECT_NAME }} \
+            -Dsonar.host.url=${{ vars.SONAR_HOST_URL }} \
+            -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
       - name: SonarQube Quality Gate
         uses: sonarsource/sonarqube-quality-gate-action@v1
