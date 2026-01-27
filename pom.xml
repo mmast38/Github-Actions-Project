@@ -10,7 +10,7 @@
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
         <version>3.3.3</version>
-        <relativePath/> <!-- lookup parent from repository -->
+        <relativePath/>
     </parent>
 
     <groupId>com.example</groupId>
@@ -59,14 +59,14 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- JaCoCo (optional dependency for Maven build) -->
+        <!-- JaCoCo for coverage -->
         <dependency>
             <groupId>org.jacoco</groupId>
             <artifactId>jacoco-maven-plugin</artifactId>
             <version>${jacoco.version}</version>
         </dependency>
 
-        <!-- Testing dependencies -->
+        <!-- Test dependencies -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
@@ -79,7 +79,6 @@
         </dependency>
     </dependencies>
 
-    <!-- Single build section -->
     <build>
         <plugins>
             <!-- Spring Boot plugin -->
@@ -121,4 +120,11 @@
     <!-- Distribution repositories -->
     <distributionManagement>
         <repository>
-            <id>maven-rele
+            <id>maven-releases</id>
+            <url>http://13.233.143.130:8081/repository/maven-releases/</url>
+        </repository>
+        <snapshotRepository>
+            <id>maven-snapshots</id>
+            <url>http://13.233.143.130:8081/repository/maven-snapshots/</url>
+        </snapshotRepository>
+    </distributionManagement>
