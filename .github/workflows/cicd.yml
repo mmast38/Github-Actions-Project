@@ -63,7 +63,7 @@ jobs:
           path: target/*.jar
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v6
+        uses: sonarsource/sonarqube-scan-action@v6
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
@@ -102,5 +102,3 @@ jobs:
           file: Dockerfile
           push: true
           tags: mast2024/bankapp3:latest
-
-  
