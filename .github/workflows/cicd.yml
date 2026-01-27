@@ -92,7 +92,7 @@ jobs:
           context: .
           file: Dockerfile
           push: true
-          tags: mast2024/bankapp2:latest
+          tags: mast2024/bankapp3:latest
 
   deploy_to_kubernetes:
     runs-on: self-hosted
