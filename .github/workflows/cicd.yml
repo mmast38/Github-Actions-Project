@@ -71,6 +71,7 @@ jobs:
 
   test:
     runs-on: agent-1
+    needs: SecurityCheck
 
     steps:
       - uses: actions/checkout@v4
