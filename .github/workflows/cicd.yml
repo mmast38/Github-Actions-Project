@@ -24,6 +24,13 @@ jobs:
       - name: Build and resolve dependencies
         run: mvn clean install -DskipTests
 
+      # ✅ Upload JAR Artifact
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+
   SecurityCheck:
     runs-on: agent-1
     needs: compile
@@ -99,5 +106,31 @@ jobs:
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v2
         env:
-            SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-            SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+  docker:
+    runs-on: agent-1
+    needs: sonar_scan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ✅ Download built JAR (optional but recommended for clean job separation)
+      - name: Download JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target
+
+      # ✅ Docker Login
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      # ✅ Build Docker Image
+      - name: Build Docker Image
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/my-app:latest .
+
+      # ✅ Push Docker Image
+      - name: Push Docker Image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/my-app:latest
