@@ -137,32 +137,10 @@ jobs:
   deploy:
     runs-on: agent-1
     needs: docker
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Source Code for Manifests
+        uses: actions/checkout@v4
 
-
-      # ✅ Configure AWS credentials
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ap-south-1
-
-      # ✅ Setup kubectl
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: latest
-
-      # ✅ Connect to EKS
-      - name: Update kubeconfig for EKS
+      - name: K8S Deploy
         run: |
-          aws eks update-kubeconfig --region ap-south-1 --name devops-eks-cluster
-
-      # ✅ Deploy
-      - name: Deploy to EKS
-        run: |
-          kubectl get nodes
-          kubectl apply -f ds.yml
+          kubectl apply -f maven-web-app-deploy.yml
