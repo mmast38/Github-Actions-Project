@@ -143,4 +143,4 @@ jobs:
 
       - name: K8S Deploy
         run: |
-          kubectl apply -f maven-web-app-deploy.yml
+          kubectl apply -f ds.yml
