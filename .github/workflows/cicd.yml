@@ -141,6 +141,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ✅ FIX: Install AWS CLI
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip curl
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          unzip -o awscliv2.zip
+          sudo ./aws/install
+          aws --version
+
       # ✅ Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -155,15 +165,13 @@ jobs:
         with:
           version: latest
 
-      # ✅ Configure kubeconfig dynamically (BEST PRACTICE)
+      # ✅ Connect to EKS
       - name: Update kubeconfig for EKS
         run: |
           aws eks update-kubeconfig --region ap-south-1 --name devops-eks-cluster
 
-      # ✅ Deploy to EKS
+      # ✅ Deploy
       - name: Deploy to EKS
         run: |
           kubectl get nodes
           kubectl apply -f ds.yml
-
-        
