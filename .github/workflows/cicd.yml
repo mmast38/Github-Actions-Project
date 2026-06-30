@@ -134,3 +134,36 @@ jobs:
       # ✅ Push Docker Image
       - name: Push Docker Image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/my-app:latest
+  deploy:
+    runs-on: agent-1
+    needs: docker
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ✅ Configure AWS credentials
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      # ✅ Setup kubectl
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: latest
+
+      # ✅ Configure kubeconfig dynamically (BEST PRACTICE)
+      - name: Update kubeconfig for EKS
+        run: |
+          aws eks update-kubeconfig --region ap-south-1 --name devops-eks-cluster
+
+      # ✅ Deploy to EKS
+      - name: Deploy to EKS
+        run: |
+          kubectl get nodes
+          kubectl apply -f ds.yml
+
+        
