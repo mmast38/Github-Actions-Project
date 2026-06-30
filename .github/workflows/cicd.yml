@@ -5,6 +5,10 @@ on:
     branches: ["main"]
 
 jobs:
+
+# =========================
+# 1. BUILD
+# =========================
   compile:
     runs-on: agent-1
 
@@ -21,16 +25,19 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build and resolve dependencies
+      - name: Build Application
         run: mvn clean install -DskipTests
 
-      # ✅ Upload JAR Artifact
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
           path: target/*.jar
 
+
+# =========================
+# 2. SECURITY SCAN
+# =========================
   SecurityCheck:
     runs-on: agent-1
     needs: compile
@@ -43,19 +50,19 @@ jobs:
           sudo apt-get install -y wget gnupg
           wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
           echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update -y
+          sudo apt-get update
           sudo apt-get install -y trivy
 
-      - name: Trivy FS Scan
+      - name: Run Trivy Scan
         run: trivy fs --scanners vuln --format json -o fs-report.json .
 
       - name: Install Gitleaks
         run: sudo apt install -y gitleaks
 
-      - name: Gitleaks Scan
+      - name: Run Gitleaks
         run: gitleaks detect -r gitleaks-report.json -f json
 
-      - name: Upload reports
+      - name: Upload Reports
         uses: actions/upload-artifact@v4
         with:
           name: security-reports
@@ -63,6 +70,10 @@ jobs:
             fs-report.json
             gitleaks-report.json
 
+
+# =========================
+# 3. TEST
+# =========================
   test:
     runs-on: agent-1
     needs: SecurityCheck
@@ -77,9 +88,13 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Run unit tests
+      - name: Run Tests
         run: mvn test
 
+
+# =========================
+# 4. SONARQUBE
+# =========================
   sonar_scan:
     runs-on: agent-1
     needs: test
@@ -96,19 +111,17 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build + SonarQube Analysis
+      - name: Run Sonar Analysis
         run: |
           mvn clean verify sonar:sonar \
           -Dsonar.projectKey=your_project_key \
           -Dsonar.host.url=${{ secrets.SONAR_HOST_URL }} \
           -Dsonar.login=${{ secrets.SONAR_TOKEN }}
 
-      - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@v2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
+# =========================
+# 5. DOCKER BUILD & PUSH
+# =========================
   docker:
     runs-on: agent-1
     needs: sonar_scan
@@ -116,31 +129,69 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # ✅ Download built JAR (optional but recommended for clean job separation)
       - name: Download JAR
         uses: actions/download-artifact@v4
         with:
           name: app-jar
           path: target
 
-      # ✅ Docker Login
-      - name: Login to Docker Hub
+      - name: Login to DockerHub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-      # ✅ Build Docker Image
-      - name: Build Docker Image
+      - name: Build Image
         run: docker build -t ${{ secrets.DOCKER_USERNAME }}/my-app:latest .
 
-      # ✅ Push Docker Image
-      - name: Push Docker Image
+      - name: Push Image
         run: docker push ${{ secrets.DOCKER_USERNAME }}/my-app:latest
+
+
+# =========================
+# 6. DEPLOY TO EKS
+# =========================
   deploy:
     runs-on: agent-1
     needs: docker
-    steps:
-      - name: Checkout Source Code for Manifests
-        uses: actions/checkout@v4
 
-      - name: K8S Deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      # ✅ Install kubectl
+      - name: Install kubectl
         run: |
+          curl -LO "https://dl.k8s.io/release/$(curl -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
+
+      # ✅ Install AWS CLI
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip curl
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
+          unzip -o awscliv2.zip
+          sudo ./aws/install
+
+      # ✅ Configure AWS
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      # ✅ Connect to EKS
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region ap-south-1 --name devops-eks-cluster
+
+      # ✅ Debug (very useful)
+      - name: Debug
+        run: |
+          which kubectl
+          kubectl version --client
+          aws --version
+
+      # ✅ Deploy to Kubernetes
+      - name: Deploy to EKS
+        run: |
+          kubectl get nodes
           kubectl apply -f ds.yml
