@@ -1,9 +1,9 @@
-name: Java CI with Maven
+name: cicd pipeline
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
+  
 
 jobs:
   build:
