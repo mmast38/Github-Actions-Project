@@ -23,5 +23,3 @@ jobs:
     - name: Build and run tests
       run: mvn -B clean verify --file pom.xml
 
-    - name: Update dependency graph (Dependabot)
-      uses: advanced-security/maven-dependency-submission-action@v4 # Updated to a cleaner version tag
