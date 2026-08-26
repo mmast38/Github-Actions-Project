@@ -1,6 +1,6 @@
 
 
-name: mavn cicd Pipeline
+name: CICD Pipeline
 
 on:
   push:
