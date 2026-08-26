@@ -5,8 +5,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  Compile:
+    runs-on: self-hosted
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,8 +22,8 @@ jobs:
         run: mvn -B package --file pom.xml
 
   SecurityCheck:
-    runs-on: ubuntu-latest
-    needs: build
+    runs-on: self-hosted
+    needs: Compile
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
