@@ -3,12 +3,13 @@ name: CICD Pipeline
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ] # Triggers whenever you open a PR against main
+  workflow_dispatch: # Allows you to manually click "Run workflow" in GitHub Actions UI
 
 jobs:
   Compile:
- 
     runs-on: ubuntu-latest
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -22,4 +23,3 @@ jobs:
 
     - name: Build and run tests
       run: mvn -B clean verify --file pom.xml
-
