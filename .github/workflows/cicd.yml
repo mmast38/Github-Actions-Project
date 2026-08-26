@@ -49,7 +49,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Gitleaks Installation
-        run: sudo apt-get install trivy -y
+        run: sudo apt-get install gitleaks -y
           
 
       - name: Gitleaks Code Scan
