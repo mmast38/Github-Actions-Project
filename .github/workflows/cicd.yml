@@ -47,3 +47,10 @@ jobs:
           format: 'json'
           output: 'fs-report.json'
           severity: 'CRITICAL,HIGH'
+
+      - name: Gitleaks Installation
+        run: sudo apt-get install trivy -y
+          
+
+      - name: Gitleaks Code Scan
+        run: gitleaks detect --source . -r gitleaks-report.json -f json
