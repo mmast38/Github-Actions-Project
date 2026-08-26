@@ -1,6 +1,6 @@
 
 
-name: Java CI with Maven
+name: mavn cicd Pipeline
 
 on:
   push:
