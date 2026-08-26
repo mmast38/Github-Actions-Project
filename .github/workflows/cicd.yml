@@ -1,4 +1,4 @@
-name: cicd pipeline
+name: cicd Pipeline
 
 on:
   push:
@@ -28,7 +28,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. Set up Java and load the Maven cache to prevent 429 errors
       - name: Set up JDK 17 for Scanner
         uses: actions/setup-java@v5
         with:
@@ -36,17 +35,15 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      # 2. Download dependencies locally so Trivy doesn't hit external servers
       - name: Resolve Dependencies Locally
         run: mvn dependency:go-offline -B --file pom.xml
 
-      - name: Install Trivy
-        run: |
-          sudo apt-get install -y wget gnupg
-          wget -qO - https://github.io | gpg --dearmor | sudo tee /usr/share/keyrings/trivy.gpg > /dev/null
-          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://github.io generic main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-          sudo apt-get update -y
-          sudo apt-get install -y trivy
-
-      - name: Trivy FS Scan
-        run: trivy fs --scanners vuln --format json -o fs-report.json .
+      # Uses the official verified action to install and run Trivy automatically
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'json'
+          output: 'fs-report.json'
+          severity: 'CRITICAL,HIGH'
