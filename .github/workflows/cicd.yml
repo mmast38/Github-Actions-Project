@@ -38,9 +38,9 @@ jobs:
       - name: Resolve Dependencies Locally
         run: mvn dependency:go-offline -B --file pom.xml
 
-      # Uses the official verified action to install and run Trivy automatically
+      # Uses the official verified action with a valid tag version
       - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: 'fs'
           scan-ref: '.'
