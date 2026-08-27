@@ -1,3 +1,75 @@
+name: cicd Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  Build-Project:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build and Package Project
+        run: mvn -B package -DskipTests --file pom.xml
+
+  SecurityCheck:
+    runs-on: self-hosted
+    needs: Build-Project
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17 for Scanner
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Resolve Dependencies Locally
+        run: mvn dependency:go-offline -B --file pom.xml
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'json'
+          output: 'fs-report.json'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Gitleaks Installation
+        run: sudo apt-get install gitleaks -y
+
+      - name: Gitleaks Code Scan
+        run: gitleaks detect --source . -r gitleaks-report.json -f json
+
+  UnitTest:
+    runs-on: self-hosted
+    needs: SecurityCheck
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run Unit Tests
+        run: mvn test --file pom.xml
+
   Sonar-Scan:
     runs-on: self-hosted
     needs: UnitTest
@@ -24,8 +96,7 @@
         id: sonarqube-quality-gate-check
         uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
         with:
-          # Point the action directly to the Maven target directory
-          scanMetadataReportFile: target/.scannerwork/report-task.txt
+          scanMetadataReportFile: target/sonar/report-task.txt
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
