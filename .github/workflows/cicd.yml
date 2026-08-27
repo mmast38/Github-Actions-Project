@@ -122,7 +122,7 @@ jobs:
           push: true
           tags: mast2024/bankapp:latest
           file: ./Dockerfile
-
+          
   deploy_to_kubernetes:
     runs-on: self-hosted
     needs: buils_docker_image_and_push
@@ -142,20 +142,11 @@ jobs:
         with:
           version: 'v1.31.0'
 
-      # ==========================================
-      # REPLACE YOUR OLD STEP #3 WITH THIS BLOCK:
-      # ==========================================
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-region: eu-west-2
-          unset-current-credentials: true
-
-      # 4. Update Kubeconfig using your confirmed cluster name
-      - name: Update Kubeconfig
+      # 3. Direct Authentication (Replaces the broken aws-actions/configure-aws-credentials step)
+      - name: Update Kubeconfig using Native host credentials
         run: |
           aws eks update-kubeconfig --region eu-west-2 --name mast
 
-      # 5. Run your deployment command
+      # 4. Run your deployment command
       - name: Run kubectl apply
         run: kubectl apply -f ds.yml
