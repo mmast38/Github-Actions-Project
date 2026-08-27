@@ -9,14 +9,12 @@ jobs:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-          
       - name: Build with Maven
         run: mvn compile
       
@@ -25,12 +23,12 @@ jobs:
     needs: compile
     steps:
       - uses: actions/checkout@v4
-      
       - name: Trivy Installation
         run: |
           sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-          echo deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo mkdir -p /etc/apt/keyrings
+          wget -qO- https://aquasecurity.github.io/trivy-repo/deb/public.key | gpg --dearmor | sudo tee /etc/apt/keyrings/trivy.gpg > /dev/null
+          echo "deb [signed-by=/etc/apt/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
           sudo apt-get update -y
           sudo apt-get install -y trivy
 
@@ -39,7 +37,6 @@ jobs:
 
       - name: Gitleaks Installation
         run: sudo apt install gitleaks -y
-        
       - name: Gitleaks Code Scan
         run: gitleaks detect --source . -r gitleaks-report.json -f json
 
@@ -48,14 +45,12 @@ jobs:
     needs: security-check
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-          
       - name: Unit Test Cases
         run: mvn test
 
@@ -64,34 +59,29 @@ jobs:
     needs: test
     steps:
       - uses: actions/checkout@v4
-      
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
           cache: maven
-          
       - name: Build Project
         run: mvn package -DskipTests
-        
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-jar
           path: target/*.jar 
-          
-      - name: Checkout deep history for Sonar
-        uses: actions/checkout@v4
+        
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}
-          
+        
       - name: SonarQube Quality Gate check
         id: sonarqube-quality-gate-check
         uses: sonarsource/sonarqube-quality-gate-action@v1.1.0
