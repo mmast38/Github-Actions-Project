@@ -127,24 +127,31 @@ jobs:
   deploy_to_kubernetes:
     runs-on: self-hosted
     needs: buils_docker_image_and_push
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
     
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ap-south-1
-    - name: Set up kubectl
-      uses: azure/setup-kubectl@v3
-      with:
-        version: latest
-    - name: Configure kubeconfig
-      run: |
-        mkdir -p $HOME/.kube
-        echo "${{ secrets.EKS_KUBECONFIG }}" > $HOME/.kube/config
-    - name: Deploy to EKS
-      run: |
-        kubectl apply -f ds.yml
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 1. Install AWS CLI on the runner
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      # 2. Authenticate with AWS using your GitHub Secrets
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-2 # Matches your EKS cluster region from the logs
+
+      # 3. Update Kubeconfig so kubectl knows how to talk to your EKS cluster
+      - name: Update Kubeconfig
+        run: |
+          aws eks update-kubeconfig --region eu-west-2 --name YOUR_CLUSTER_NAME
+
+      # 4. Run your original deployment command
+      - name: Run kubectl apply
+        run: kubectl apply -f ds.yml
+
