@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  Compile:
+  Build-Project:
     runs-on: self-hosted
     steps:
       - name: Checkout repository
@@ -18,12 +18,12 @@ jobs:
           distribution: 'temurin'
           cache: maven
 
-      - name: Build with Maven
-        run: mvn -B package --file pom.xml
+      - name: Build and Package Project
+        run: mvn -B package -DskipTests --file pom.xml
 
   SecurityCheck:
     runs-on: self-hosted
-    needs: Compile
+    needs: Build-Project
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -69,3 +69,25 @@ jobs:
 
       - name: Run Unit Tests
         run: mvn test --file pom.xml
+
+  Sonar-Scan:
+    runs-on: self-hosted
+    needs: UnitTest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Mandated by Sonar for proper blame and tracking data
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run SonarQube Analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar --file pom.xml
