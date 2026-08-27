@@ -123,7 +123,6 @@ jobs:
           tags: mast2024/bankapp:latest
           file: ./Dockerfile
 
-          
   deploy_to_kubernetes:
     runs-on: self-hosted
     needs: buils_docker_image_and_push
@@ -137,19 +136,20 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y awscli
 
-      # 2. Automatically install and expose kubectl via trusted community action
+      # 2. Automatically install and expose kubectl via trusted action
       - name: Setup kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: 'v1.31.0'
 
-      # 3. Authenticate with AWS
+      # ==========================================
+      # REPLACE YOUR OLD STEP #3 WITH THIS BLOCK:
+      # ==========================================
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-2
+          unset-current-credentials: true
 
       # 4. Update Kubeconfig using your confirmed cluster name
       - name: Update Kubeconfig
