@@ -101,7 +101,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: app-jar
-          path: app # Downloads JAR to ./app folder
+          path: target # Matches the path parameter rule used inside your local Dockerfile
           
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -137,16 +137,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y awscli
 
-      # 2. Install kubectl on the runner
-      - name: Install kubectl
-        run: |
-          sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates curl gnupg
-          curl -fsSL https://k8s.io | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-          sudo chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-          echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://k8s.io /' | sudo tee /etc/apt/sources.list.p/kubernetes.list
-          sudo chmod 644 /etc/apt/sources.list.p/kubernetes.list
-          sudo apt-get update
-          sudo apt-get install -y kubectl
+      # 2. Automatically install and expose kubectl via trusted community action
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'v1.31.0'
 
       # 3. Authenticate with AWS
       - name: Configure AWS Credentials
@@ -164,5 +159,3 @@ jobs:
       # 5. Run your deployment command
       - name: Run kubectl apply
         run: kubectl apply -f ds.yml
-
-
