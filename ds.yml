@@ -1,5 +1,18 @@
 ---
-# MySQL Deployment
+# 1. AWS EBS Storage Claim for MySQL
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: gp3 # Standard AWS EKS storage class
+  resources:
+    requests:
+      storage: 10Gi
+---
+# 2. MySQL Deployment with Persistence
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -26,8 +39,16 @@ spec:
         ports:
         - containerPort: 3306
           name: mysql
+        # Mount the volume into MySQL's data folder
+        volumeMounts:
+        - name: mysql-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-storage
+        persistentVolumeClaim:
+          claimName: mysql-pvc
 ---
-# MySQL Service
+# 3. MySQL Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -38,7 +59,7 @@ spec:
   selector:
     app: mysql
 ---
-# Java Application Deployment
+# 4. Java Application Deployment with Health & Readiness Checks
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,6 +74,11 @@ spec:
       labels:
         app: bankapp
     spec:
+      # Block app startup until MySQL service is listening on port 3306
+      initContainers:
+      - name: wait-for-mysql
+        image: busybox:1.36
+        command: ['sh', '-c', 'until nc -z -v -w3 mysql-service 3306; do echo "Waiting for MySQL database..."; sleep 2; done;']
       containers:
       - name: bankapp
         image: mast2024/bankapp:latest
@@ -66,11 +92,15 @@ spec:
         - name: SPRING_DATASOURCE_PASSWORD
           value: Test@123
 ---
-# Bank Application Service
+# 5. Bank Application Service (Creates an AWS Network Load Balancer)
 apiVersion: v1
 kind: Service
 metadata:
   name: bankapp-service
+  annotations:
+    # Forces AWS to provision a modern Network Load Balancer (NLB) instead of a legacy ELB
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
 spec:
   type: LoadBalancer
   ports:
