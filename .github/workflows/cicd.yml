@@ -23,14 +23,27 @@ jobs:
     needs: compile
     steps:
       - uses: actions/checkout@v4
-      - name: Trivy Installation
+      
+      - name: Purge Corrupt Repositories & Install Trivy
         run: |
-          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
-          sudo mkdir -p /etc/apt/keyrings
+          # 1. Force remove rogue configurations and references from the runner host
           sudo rm -f /etc/apt/keyrings/trivy.gpg
           sudo rm -f /etc/apt/sources.list.d/trivy.list
+          
+          # Clean up any partial entries inside global sources configurations if present
+          sudo sed -i '/github.io/d' /etc/apt/sources.list
+          
+          # 2. Re-install core utilities
+          sudo apt-get install -y wget apt-transport-https gnupg lsb-release
+          
+          # 3. Create keyrings directory and securely download the genuine key
+          sudo mkdir -p /etc/apt/keyrings
           wget -qO- https://github.io | gpg --dearmor | sudo tee /etc/apt/keyrings/trivy.gpg > /dev/null
+          
+          # 4. Inject the correct, fully qualified repository URL
           echo "deb [signed-by=/etc/apt/keyrings/trivy.gpg] https://github.io $(lsb_release -sc) main" | sudo tee /etc/apt/sources.list.d/trivy.list
+          
+          # 5. Refresh lists and install
           sudo apt-get update -y
           sudo apt-get install -y trivy
 
@@ -39,8 +52,10 @@ jobs:
 
       - name: Gitleaks Installation
         run: sudo apt install gitleaks -y
+        
       - name: Gitleaks Code Scan
         run: gitleaks detect --source . -r gitleaks-report.json -f json
+
 
   test:
     runs-on: self-hosted
