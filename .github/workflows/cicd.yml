@@ -149,7 +149,7 @@ jobs:
       # 3. Update Kubeconfig so kubectl knows how to talk to your EKS cluster
       - name: Update Kubeconfig
         run: |
-          aws eks update-kubeconfig --region eu-west-2 --name YOUR_CLUSTER_NAME
+          aws eks update-kubeconfig --region eu-west-2 --name mast
 
       # 4. Run your original deployment command
       - name: Run kubectl apply
