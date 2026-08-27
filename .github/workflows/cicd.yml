@@ -127,7 +127,6 @@ jobs:
   deploy_to_kubernetes:
     runs-on: self-hosted
     needs: buils_docker_image_and_push
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -138,20 +137,32 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y awscli
 
-      # 2. Authenticate with AWS using your GitHub Secrets
+      # 2. Install kubectl on the runner
+      - name: Install kubectl
+        run: |
+          sudo apt-get update && sudo apt-get install -y apt-transport-https ca-certificates curl gnupg
+          curl -fsSL https://k8s.io | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+          sudo chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+          echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://k8s.io /' | sudo tee /etc/apt/sources.list.p/kubernetes.list
+          sudo chmod 644 /etc/apt/sources.list.p/kubernetes.list
+          sudo apt-get update
+          sudo apt-get install -y kubectl
+
+      # 3. Authenticate with AWS
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-2 # Matches your EKS cluster region from the logs
+          aws-region: eu-west-2
 
-      # 3. Update Kubeconfig so kubectl knows how to talk to your EKS cluster
+      # 4. Update Kubeconfig using your confirmed cluster name
       - name: Update Kubeconfig
         run: |
           aws eks update-kubeconfig --region eu-west-2 --name mast
 
-      # 4. Run your original deployment command
+      # 5. Run your deployment command
       - name: Run kubectl apply
         run: kubectl apply -f ds.yml
+
 
