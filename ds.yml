@@ -1,18 +1,4 @@
----
-# 1. AWS EBS Storage Claim for MySQL
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: mysql-pvc
-spec:
-  accessModes:
-    - ReadWriteOnce
-  storageClassName: gp3 # Standard AWS EKS storage class
-  resources:
-    requests:
-      storage: 10Gi
----
-# 2. MySQL Deployment with Persistence
+# 1. Local Node Storage Configuration for MySQL (Bypasses missing cloud drivers)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -45,10 +31,11 @@ spec:
           mountPath: /var/lib/mysql
       volumes:
       - name: mysql-storage
-        persistentVolumeClaim:
-          claimName: mysql-pvc
+        hostPath:
+          path: /tmp/mysql-data
+          type: DirectoryOrCreate
 ---
-# 3. MySQL Service
+# 2. MySQL Service
 apiVersion: v1
 kind: Service
 metadata:
@@ -59,7 +46,7 @@ spec:
   selector:
     app: mysql
 ---
-# 4. Java Application Deployment with Health & Readiness Checks
+# 3. Java Application Deployment with Health & Readiness Checks
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -92,15 +79,11 @@ spec:
         - name: SPRING_DATASOURCE_PASSWORD
           value: Test@123
 ---
-# 5. Bank Application Service (Creates an AWS Network Load Balancer)
+# 4. Bank Application Service (Creates a working AWS Classic Load Balancer)
 apiVersion: v1
 kind: Service
 metadata:
   name: bankapp-service
-  annotations:
-    # Forces AWS to provision a modern Network Load Balancer (NLB) instead of a legacy ELB
-    service.beta.kubernetes.io/aws-load-balancer-type: "external"
-    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "instance"
 spec:
   type: LoadBalancer
   ports:
